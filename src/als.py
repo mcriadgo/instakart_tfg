@@ -7,9 +7,19 @@ import matplotlib.pyplot as plt
 
 def run_manual_als(original_matrix, lambda_, n_factors, max_iter):
     """
-        Runs als manually
+        Runs als manually. Initialize two random matrices with original_matrix shape. By Ridge Regression
+        fits every row of user matrix and then every column of item matrix.
+        Row for users because users are indexes, columns for items because items are columns in original_matrix.
+        Computes RMSE for each iteration
+        :param original_matrix
+        :param lambda_: regularization term for Ridge regression
+        :param n_factors: latent factors
+        :param max_iter: iterations to converge als algorithm
+        :return (ndarray) users: user matrix data obtained from ALS algorithm
+        :return (ndarray) items: item matrix data obtained from ALS algorithm
+        :return (list) errors: list of errors for every iteration
     """
-    (Nu, Ni) = original_matrix.shape  # latent factors
+    (Nu, Ni) = original_matrix.shape
     users = np.random.rand(Nu, n_factors)
     items = np.random.rand(n_factors, Ni)
     errors_per_iter = []
@@ -43,6 +53,13 @@ def run_manual_als(original_matrix, lambda_, n_factors, max_iter):
 
 
 def get_error_RMSE(ratings, users, items):
+    """
+        Computes RMSE
+        :param ratings: original matrix where users are indexes, items are columns
+        :param users: user matrix data obtained from ALS algorithm
+        :param items: item matrix data obtained from ALS algorithm
+        :return: root mean squared error
+    """
     product = np.dot(users, items)
     return np.sqrt(mean_squared_error(ratings, product))
 
@@ -56,10 +73,8 @@ def runALS(A, R, n_factors, n_iterations, lambda_):
         :param lambda_: Regularization parameter
         :return users, items: user and item matrix resulting from ALS algorithm
     """
-    # lambda_ = 0.1
-    # n_factors = 130
+
     n, m = A.shape
-    # n_iterations = 25
     users = np.random.rand(n, n_factors)
     items = np.random.rand(n_factors, m)
 

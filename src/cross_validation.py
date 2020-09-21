@@ -7,15 +7,18 @@ param_grid = {'iterations':[50, 100, 130],
               'reg': [0.001, 0.005, 0.01, 0.05, 0.06, 0.1, 0.5],
               'latent_factors':[50, 75, 100, 130, 150]}
 
-
-def get_error_RMSE(ratings, users, items):
-    product = np.dot(users, items.T)
-    return np.sqrt(mean_squared_error(ratings, product))
-
 def get_error(A, users, items, R):
     return np.sum((R * (A - np.dot(users, items))) ** 2) / np.sum(R)
 
 def validate_params(sparse_item_user_matrix, item_user_matrix, item_user_matrix_bool):
+    """
+        Cross validation method
+        :param sparse_item_user_matrix: sparse matrix obtained from preprocessing
+        :param item_user_matrix: matrix obtained from preprocessing for training data
+        :param item_user_matrix_bool: mask of matrix obtained from preprocessing for training data
+        :return (list) errors: list of errors for every possibility of regularization parameters,
+        iterations to converge and latent factors.
+    """
     errors = []
     for i in param_grid.get('iterations'):
         print('Process for iteration %s' % str(i))

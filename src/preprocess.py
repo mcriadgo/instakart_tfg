@@ -10,7 +10,7 @@ def create_df():
         Merges orders dataframe with train subset dataframe, creates ratings column
         with values from 0 to 1/30
         Drops unused columns and deletes duplicates
-        :return not_dup_df: resulting dataframe
+        :return (dataframe) not_dup_df: resulting dataframe
     """
     orders = pd.read_csv(path_orders)
     train_orders = pd.read_csv(path_prior)
@@ -41,9 +41,8 @@ def check_sparsity(sparse_matrix):
 
 def process_df(df, num_users, num_items):
     """
-        Calls create_df() to obtain a dataframe that can be filtered.
-        Dataframe must be filtered with num_users and num_items so that final matrix to nourish ALS algortithm
-        is not so sparse
+        Orders dataframe by frequency of users and items. Gets num_users and num_items more frequent
+        :param df: dataframe to process
         :param num_users: users to filter
         :param num_items: items to filter
         :return dfFilter (dataframe): filtered dataframe
@@ -84,7 +83,18 @@ def train_test_val_split(data, test_ratio, val_ratio):
 
 
 def sample_df(train_df, test_df, val_df):
-    results = {}
+    """
+        Creates pivot tables to have user_id as index, item_id as column and ratings as data. Fills nan values
+        with zero.
+        Creates mask, if position in matrix has rating then mask position equals 1, else 0
+        Created a list of the products that have been rated
+        :param train_df: training dataframe
+        :param test_df: test dataframe
+        :param val_df: validation dataframe
+        :return (dataframe) product_user_altered: list of rated products
+        :return (dataframe) train_table: training pivot table
+        :return (dataframe) train_df_boolean: training mask
+    """
     train_table= train_df.pivot(index='user_id', columns='product_id', values='ratings').fillna(0).values
 
     val_table = val_df.pivot(index='user_id', columns='product_id',
@@ -96,7 +106,6 @@ def sample_df(train_df, test_df, val_df):
     val_table[val_table != 0] = 1
     train_df_boolean = train_table.copy()
     train_df_boolean[train_df_boolean != 0] = 1
-    
 
     yes_no_array = (val_df != 0).any(axis=1).values
     product_user_altered = np.where(yes_no_array is True)[0].tolist()
