@@ -1,21 +1,20 @@
 import numpy as np
 import pandas as pd
 import random
+import matplotlib.pyplot as plt
 from sklearn.metrics import average_precision_score
-from sklearn.metrics import f1_score
+import implicit
+
+from src import config
 
 
-iterations = [50, 75, 100, 130, 150, 165]
-reg = [0.001, 0.005, 0.01, 0.05, 0.06, 0.1, 0.5]
-
-    
 def dcg_at_k(r, k, method=0):
     """
-
-    :param r:
-    :param k:
-    :param method:
-    :return:
+        Computes Discounted Cumulative Gain at k
+        :param r: list of relevance of each elements
+        :param k: top k to compute DCG
+        :param method:
+        :return (double) dcg: discounted cumulative gain result
     """
     r = np.asfarray(r)[:k]
     if r.size:
@@ -28,24 +27,24 @@ def dcg_at_k(r, k, method=0):
     return 0.
 
 
-def mAP_nDCG_k(reconstTrainMatrix, trainSparse, altered_users, testSparse, k, ran=False):
+def mAP_nDCG_k(als_user_item, trainSparse, altered_users, testSparse, k, ran=False):
     """
 
-    :param reconstTrainMatrix:
-    :param trainSparse:
-    :param altered_users:
-    :param testSparse:
+    :param als_user_item: matrix reconstructed from ALS algorithm
+    :param trainSparse: original sparse training matrix
+    :param altered_users: users that have rated products
+    :param testSparse: validation or test sparse matrix to test results with
     :param k:
-    :param ran:
+    :param ran: boolean parameter to set random elements as y_score or elements from original matrix
     :return:
     """
     sum_AP = 0
     sum_nDCG = 0
     for user in altered_users:
         if ran is False:
-            y_score = reconstTrainMatrix[user, :].tolist()
+            y_score = als_user_item[user, :].tolist()
         else:
-            y_score = [random.random() for test in range(trainSparse.shape[1])]
+            y_score = [random.random() for _ in range(trainSparse.shape[1])]
         y_true = testSparse.toarray()[user, :]
         y_true = y_true[:trainSparse.shape[1]]
         df = pd.DataFrame({"y_true": y_true, "y_score": y_score})
@@ -68,26 +67,26 @@ def mAP_nDCG_k(reconstTrainMatrix, trainSparse, altered_users, testSparse, k, ra
     return mAP, nDCG
 
 
-def precision_recall_F1_at_k(training_set, altered_users, predictions_list, test_set, k, ran):
+def precision_recall_F1_at_k(sparse_train, altered_users, predictions_list, test_set, k, ran):
     """
 
-    :param training_set:
-    :param altered_users:
-    :param predictions_list:
-    :param test_set:
+    :param sparse_train: sparse original training matrix
+    :param altered_users: users that have rated products
+    :param predictions_list: [users result sparse matrix, items result sparse matrix]
+    :param test_set: test or validation sparse matrix
     :param k:
-    :param ran:
+    :param ran: boolean flag to set if random performance is better
     :return:
     """
     precisions = []
     recalls = []
     f1 = []
-    for user in range(training_set.shape[0]):
-        rankingTestSongs = getRankingPos_test(user, training_set, predictions_list, test_set, ran)
-        size_HitSet = sum(rankingTestSongs <= k)
-        size_testSet = len(rankingTestSongs)
-        recall = size_HitSet / size_testSet
-        precision = size_HitSet / k
+    for user in range(sparse_train.shape[0]):
+        rankingTestItems = getRankingPos_test(user, sparse_train, predictions_list, test_set, ran)
+        size_HitSet = sum(rankingTestItems <= k)  # sum of first k elements
+        size_testSet = len(rankingTestItems)
+        recall = size_HitSet / size_testSet # recall = true_positive / (true_positive+false_negative)
+        precision = size_HitSet / k  # precision = true_positive / (true_positive+false_positive)
         F1 = 2 * precision * recall / (recall + precision)
         if str(F1) == "nan":
             F1 = 0
@@ -98,23 +97,23 @@ def precision_recall_F1_at_k(training_set, altered_users, predictions_list, test
 
 def getRankingPos_test(user, training_set, predictions_list, test_set, ran):
     """
-
-    :param user:
-    :param training_set:
-    :param predictions_list:
-    :param test_set:
-    :param ran:
-    :return:
+        Creates pandas Series that correspond to the most ranked products in results of ALS algorithm
+        :param user:
+        :param training_set: sparse original training matrix
+        :param predictions_list: [users result sparse matrix, items result sparse matrix]
+        :param test_set: test or validation sparse matrix
+        :param ran: boolean flag to set if random performance is better
+        :return:
     """
-    item_vecs = predictions_list[1]
+    product_vecs = predictions_list[1]
     training_row = training_set[user, :].toarray().reshape(-1)
 
     zero_inds = np.where(training_row == 0)
     if ran is False:
         user_vec = predictions_list[0][user, :]
-        predictions = user_vec.dot(item_vecs).toarray()[0, zero_inds].reshape(-1)
+        predictions = user_vec.dot(product_vecs).toarray()[0, zero_inds].reshape(-1)
     else:
-        predictions = [random.random() for test in range(training_set.shape[1])]
+        predictions = [random.random() for _ in range(training_set.shape[1])]
 
     predictions_df = pd.DataFrame(predictions)
     predictions_df = predictions_df.sort_values(by=0, ascending=False)
@@ -123,11 +122,11 @@ def getRankingPos_test(user, training_set, predictions_list, test_set, ran):
 
     test = test_set[user, :].toarray()[0, zero_inds].reshape(-1)
     test_df = pd.DataFrame(test)
-    heardSongs_test = test_df[test != 0]
-    ranking_testSongs = predictions_df.loc[heardSongs_test.index, "num_ranking"]
-    return ranking_testSongs
+    rankedProducts_test = test_df[test != 0]
+    ranking_testProducts = predictions_df.loc[rankedProducts_test.index, "num_ranking"]
+    return ranking_testProducts
 
-def f1_score_set_iterations(sparse_train, sparse_val):
+def f1_score_set_iterations(altered, sparse_train, sparse_val):
     """
 
     :param sparse_train:
@@ -136,7 +135,7 @@ def f1_score_set_iterations(sparse_train, sparse_val):
     """
     map_array = []
     ndcg_array = []
-    for k in iterations:
+    for k in config.ITERATIONS:
         model = implicit.als.AlternatingLeastSquares(factors=k, regularization=0.05, iterations=25,
                                                      calculate_training_loss=True)
         model.fit(sparse_train)
@@ -147,13 +146,13 @@ def f1_score_set_iterations(sparse_train, sparse_val):
         map_array.append(mAP)
         ndcg_array.append(nDCG)
 
-    plt.plot(.iterations, f1_array, '.-')
+    plt.plot(config.ITERATIONS, f1_array, '.-')
     plt.grid(True)
     plt.title('mAP vs. Factores latentes (25 iteraciones)')
     plt.xlabel('Número de factores latentes')
     plt.ylabel('Valor de mAP')
 
-def map_lambda_reg(, sparse_train, sparse_val):
+def map_lambda_reg(altered, sparse_train, sparse_test, sparse_val):
     """
 
     :param sparse_train:
@@ -163,7 +162,7 @@ def map_lambda_reg(, sparse_train, sparse_val):
 
     map_array = []
     ndcg_array = []
-    for k in reg:
+    for k in config.REGULARIZATION_PARAM:
         model = implicit.als.AlternatingLeastSquares(factors=120, regularization=k, iterations=25,
                                                      calculate_training_loss=True)
         model.fit(sparse_train)
@@ -174,7 +173,7 @@ def map_lambda_reg(, sparse_train, sparse_val):
         map_array.append(mAP)
         ndcg_array.append(nDCG)
 
-    plt.plot(.reg, map_array, '.-')
+    plt.plot(config.REGULARIZATION_PARAM, map_array, '.-')
     plt.grid(True)
     plt.xlabel('Valor del hiperparámetro de regularización')
     plt.ylabel('Valor de mAP')

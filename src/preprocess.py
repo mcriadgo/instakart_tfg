@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-from scipy.sparse import csr_matrix
-path_orders = "C:/Users/Marta/Documents/RecommenderSystem/BBDD/orders.csv"
-path_prior = "C:/Users/Marta/Documents/RecommenderSystem/BBDD/order_products__train.csv"
+
+from src import config
+
 
 def create_df():
     """
@@ -12,8 +12,8 @@ def create_df():
         Drops unused columns and deletes duplicates
         :return (dataframe) not_dup_df: resulting dataframe
     """
-    orders = pd.read_csv(path_orders)
-    train_orders = pd.read_csv(path_prior)
+    orders = pd.read_csv(config.ORDERS_PATH)
+    train_orders = pd.read_csv(config.TRAIN_ORDERS_PATH)
     merged_df = pd.merge(train_orders, orders, on='order_id', how='left')
     merged_df.dropna(how='any', inplace=True)
     f_df = merged_df[merged_df['days_since_prior_order'] != 0]
