@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy.sparse import csr_matrix
 
 from src import config
 
@@ -91,9 +92,6 @@ def sample_df(train_df, test_df, val_df):
         :param train_df: training dataframe
         :param test_df: test dataframe
         :param val_df: validation dataframe
-        :return (dataframe) product_user_altered: list of rated products
-        :return (dataframe) train_table: training pivot table
-        :return (dataframe) train_df_boolean: training mask
     """
     train_table= train_df.pivot(index='user_id', columns='product_id', values='ratings').fillna(0).values
 
@@ -104,16 +102,15 @@ def sample_df(train_df, test_df, val_df):
     # Every interaction between item and product has to be one, the others zero
     test_table[test_table != 0] = 1
     val_table[val_table != 0] = 1
-    train_df_boolean = train_table.copy()
-    train_df_boolean[train_df_boolean != 0] = 1
+    mask_train = train_table.copy()
+    mask_train[mask_train != 0] = 1
 
     yes_no_array = (val_df != 0).any(axis=1).values
     product_user_altered = np.where(yes_no_array is True)[0].tolist()
-    # train_table = train_table
-    # sparse_train = csr_matrix(train_table)
-    # sparse_val = csr_matrix(val_table)
-    # sparse_test = csr_matrix(test_table)
+    sparse_train = csr_matrix(train_table)
+    sparse_val = csr_matrix(val_table)
+    sparse_test = csr_matrix(test_table)
 
-    return product_user_altered, train_table, train_df_boolean
+    return product_user_altered, train_table, mask_train, sparse_train, sparse_val, sparse_test
 
 

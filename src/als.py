@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_squared_error
-import implicit
 import matplotlib.pyplot as plt
 
 
@@ -93,13 +92,5 @@ def runALS(A, R, n_factors, n_iterations, lambda_):
 
         MSE_List.append(get_error(A, users, items, R))
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # plt.plot(range(1, len(MSE_List) + 1), MSE_List)
-    # plt.ylabel('Error')
-    # plt.xlabel('Iteration')
-    # plt.title('Python Implementation MSE by Iteration \n with %d users and %d movies' % A.shape)
-    # plt.savefig('Python MSE Graph.pdf', format='pdf')
-    # plt.show()
     return users, items
 
